@@ -28,6 +28,7 @@ from rcm.callbacks.iter_speed import IterSpeed
 from rcm.callbacks.wandb_log import WandbCallback
 from rcm.callbacks.every_n_draw_distill import EveryNDrawSample_Distill
 from rcm.callbacks.every_n_draw_sla import EveryNDrawSample_SLA
+from rcm.callbacks.every_n_draw_sft import EveryNDrawSample_SFT
 
 BASIC_CALLBACKS = dict(
     grad_clip=L(GradClip)(),
@@ -89,6 +90,16 @@ VIZ_ONLINE_SAMPLING_SLA_CALLBACKS = dict(
     ),
 )
 
+VIZ_ONLINE_SAMPLING_SFT_CALLBACKS = dict(
+    every_n_sample_reg=L(EveryNDrawSample_SFT)(
+        every_n=5000,
+    ),
+    every_n_sample_ema=L(EveryNDrawSample_SFT)(
+        every_n=5000,
+        is_ema=True,
+    ),
+)
+
 
 def register_callbacks():
     cs = ConfigStore.instance()
@@ -97,3 +108,4 @@ def register_callbacks():
     cs.store(group="callbacks", package="trainer.callbacks", name="wandb", node=WANDB_CALLBACK)
     cs.store(group="callbacks", package="trainer.callbacks", name="viz_online_sampling_distill", node=VIZ_ONLINE_SAMPLING_DISTILL_CALLBACKS)
     cs.store(group="callbacks", package="trainer.callbacks", name="viz_online_sampling_sla", node=VIZ_ONLINE_SAMPLING_SLA_CALLBACKS)
+    cs.store(group="callbacks", package="trainer.callbacks", name="viz_online_sampling_sft", node=VIZ_ONLINE_SAMPLING_SFT_CALLBACKS)

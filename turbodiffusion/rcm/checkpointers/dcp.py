@@ -199,6 +199,12 @@ StateDictItemPath = namedtuple("StateDictItemPath", ["state_dict", "save_path"])
 # to people who find it difficult to digest the code, official tutorial for torch dcp may be helpful
 
 
+def _model_uses_lora_state_dict(model: nn.Module) -> bool:
+    """True if model saves/loads only LoRA state (e.g. T2VModel_SFT with lora_enabled)."""
+    config = getattr(model, "config", None)
+    return config is not None and getattr(config, "lora_enabled", False)
+
+
 class ModelWrapper(Stateful):
     """Wrapper for model state dict handling"""
 
@@ -213,6 +219,8 @@ class ModelWrapper(Stateful):
         #     ), "ModelWrapper only supports DiffusionModel when load_ema_to_reg is True"
 
     def state_dict(self) -> Dict[str, Any]:
+        if _model_uses_lora_state_dict(self.model[0]):
+            return self.model[0].state_dict()
         _state_dict = {k: v for sd in map(get_model_state_dict, self.model) for k, v in sd.items()}
         if self.load_ema_to_reg:
             assert not self.model[0].config.ema.enabled, "EMA is enabled, can not load EMA weights to regular model weights"
@@ -226,6 +234,9 @@ class ModelWrapper(Stateful):
         return _state_dict
 
     def load_state_dict(self, state_dict: Dict[str, Any]) -> None:
+        if _model_uses_lora_state_dict(self.model[0]):
+            self.model[0].load_state_dict(state_dict, strict=False)
+            return
         if self.load_ema_to_reg:
             assert not self.model[0].config.ema.enabled, "EMA is enabled, can not load EMA weights to regular model weights"
             all_keys = list(state_dict.keys())
