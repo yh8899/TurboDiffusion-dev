@@ -46,6 +46,7 @@ dependencies = [
   "webdataset",
   "transformer_engine[pytorch]",
   "diffusers",
+  "scipy",
 ]
 
 [build-system]

@@ -18,7 +18,9 @@ from hydra.core.config_store import ConfigStore
 from imaginaire.lazy_config import LazyCall as L
 from rcm.models.t2v_model_distill_rcm import T2VDistillConfig_rCM, T2VDistillModel_rCM
 from rcm.models.t2v_model_sla import T2VConfig_SLA, T2VModel_SLA
+from rcm.models.t2v_model_sla2 import T2VConfig_SLA2, T2VModel_SLA2
 from rcm.models.t2v_model_sft import T2VConfig_SFT, T2VModel_SFT
+from rcm.models.t2v_model_sft_wan22 import T2VConfig_SFT_Wan22, T2VModel_SFT_Wan22
 
 FSDP_CONFIG_T2V_DISTILL_RCM = dict(
     trainer=dict(distributed_parallelism="fsdp"),
@@ -35,9 +37,21 @@ FSDP_CONFIG_T2V_SFT = dict(
     model=L(T2VModel_SFT)(config=T2VConfig_SFT(fsdp_shard_size=8), _recursive_=False),
 )
 
+FSDP_CONFIG_T2V_SFT_WAN22 = dict(
+    trainer=dict(distributed_parallelism="fsdp"),
+    model=L(T2VModel_SFT_Wan22)(config=T2VConfig_SFT_Wan22(fsdp_shard_size=8), _recursive_=False),
+)
+
+FSDP_CONFIG_T2V_SLA2 = dict(
+    trainer=dict(distributed_parallelism="fsdp"),
+    model=L(T2VModel_SLA2)(config=T2VConfig_SLA2(fsdp_shard_size=8), _recursive_=False),
+)
+
 
 def register_model():
     cs = ConfigStore.instance()
     cs.store(group="model", package="_global_", name="fsdp_t2v_distill_rcm", node=FSDP_CONFIG_T2V_DISTILL_RCM)
     cs.store(group="model", package="_global_", name="fsdp_t2v_sla", node=FSDP_CONFIG_T2V_SLA)
+    cs.store(group="model", package="_global_", name="fsdp_t2v_sla2", node=FSDP_CONFIG_T2V_SLA2)
     cs.store(group="model", package="_global_", name="fsdp_t2v_sft", node=FSDP_CONFIG_T2V_SFT)
+    cs.store(group="model", package="_global_", name="fsdp_t2v_sft_wan22", node=FSDP_CONFIG_T2V_SFT_WAN22)
