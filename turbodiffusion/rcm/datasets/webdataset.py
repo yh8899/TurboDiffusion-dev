@@ -57,3 +57,44 @@ def create_dataloader(
     )
 
     return dataloader
+
+
+def create_qwen_image_dataloader(
+    tar_path_pattern,
+    batch_size,
+    num_workers=8,
+    shuffle_buffer=1000,
+    prefetch_factor=2,
+):
+    """Dataloader for QwenImage tar shards.
+
+    Each shard contains ``{key}.latent.pt``, ``{key}.embed.pt``,
+    ``{key}.mask.pt``, and ``{key}.prompt.txt``.  After renaming the
+    batch dict will have keys: ``latents``, ``embed``, ``mask``, ``prompts``.
+    """
+    shards = glob.glob(tar_path_pattern)
+    if not shards:
+        raise FileNotFoundError(f"No files found with pattern '{tar_path_pattern}'")
+
+    dataset = wds.DataPipeline(
+        wds.SimpleShardList(shards),
+        wds.shuffle(1000),
+        wds.split_by_node,
+        wds.split_by_worker,
+        wds.tarfile_to_samples(),
+        wds.shuffle(shuffle_buffer),
+        wds.decode(wds.handle_extension("pt", wds.torch_loads)),
+        wds.rename(latents="latent.pt", embed="embed.pt", mask="mask.pt", prompts="prompt.txt"),
+        wds.batched(batch_size, partial=False, collation_fn=dict_collation_fn),
+    )
+
+    dataloader = DataLoader(
+        dataset,
+        batch_size=None,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True,
+        prefetch_factor=prefetch_factor,
+    )
+
+    return dataloader

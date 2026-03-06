@@ -21,6 +21,7 @@ from rcm.models.t2v_model_sla import T2VConfig_SLA, T2VModel_SLA
 from rcm.models.t2v_model_sla2 import T2VConfig_SLA2, T2VModel_SLA2
 from rcm.models.t2v_model_sft import T2VConfig_SFT, T2VModel_SFT
 from rcm.models.t2v_model_sft_wan22 import T2VConfig_SFT_Wan22, T2VModel_SFT_Wan22
+from rcm.models.t2i_model_sft_qwen_image import T2IConfig_SFT_QwenImage, T2IModel_SFT_QwenImage
 
 FSDP_CONFIG_T2V_DISTILL_RCM = dict(
     trainer=dict(distributed_parallelism="fsdp"),
@@ -47,6 +48,13 @@ FSDP_CONFIG_T2V_SLA2 = dict(
     model=L(T2VModel_SLA2)(config=T2VConfig_SLA2(fsdp_shard_size=8), _recursive_=False),
 )
 
+FSDP_CONFIG_T2I_SFT_QWEN_IMAGE = dict(
+    trainer=dict(distributed_parallelism="fsdp"),
+    model=L(T2IModel_SFT_QwenImage)(
+        config=T2IConfig_SFT_QwenImage(fsdp_shard_size=8), _recursive_=False
+    ),
+)
+
 
 def register_model():
     cs = ConfigStore.instance()
@@ -55,3 +63,4 @@ def register_model():
     cs.store(group="model", package="_global_", name="fsdp_t2v_sla2", node=FSDP_CONFIG_T2V_SLA2)
     cs.store(group="model", package="_global_", name="fsdp_t2v_sft", node=FSDP_CONFIG_T2V_SFT)
     cs.store(group="model", package="_global_", name="fsdp_t2v_sft_wan22", node=FSDP_CONFIG_T2V_SFT_WAN22)
+    cs.store(group="model", package="_global_", name="fsdp_t2i_sft_qwen_image", node=FSDP_CONFIG_T2I_SFT_QWEN_IMAGE)

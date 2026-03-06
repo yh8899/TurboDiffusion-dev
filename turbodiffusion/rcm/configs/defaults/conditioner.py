@@ -17,7 +17,7 @@ from hydra.core.config_store import ConfigStore
 
 from imaginaire.lazy_config import LazyCall as L
 from imaginaire.lazy_config import LazyDict
-from rcm.conditioner import TextAttr, TextConditioner
+from rcm.conditioner import TextAttr, TextAttrWithMask, TextConditioner
 
 TextConditionerNoDropConfig: LazyDict = L(TextConditioner)(
     text=L(TextAttr)(
@@ -26,7 +26,23 @@ TextConditionerNoDropConfig: LazyDict = L(TextConditioner)(
     ),
 )
 
+QwenTextConditionerNoDropConfig: LazyDict = L(TextConditioner)(
+    text=L(TextAttrWithMask)(
+        input_key=["embed", "mask"],
+        dropout_rate=0.0,
+    ),
+)
+
+QwenTextConditionerConfig: LazyDict = L(TextConditioner)(
+    text=L(TextAttrWithMask)(
+        input_key=["embed", "mask"],
+        dropout_rate=0.1,
+    ),
+)
+
 
 def register_conditioner():
     cs = ConfigStore.instance()
     cs.store(group="conditioner", package="model.config.conditioner", name="text_nodrop", node=TextConditionerNoDropConfig)
+    cs.store(group="conditioner", package="model.config.conditioner", name="qwen_text_nodrop", node=QwenTextConditionerNoDropConfig)
+    cs.store(group="conditioner", package="model.config.conditioner", name="qwen_text", node=QwenTextConditionerConfig)

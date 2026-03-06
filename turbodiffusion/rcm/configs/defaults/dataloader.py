@@ -17,7 +17,7 @@ import torch
 from hydra.core.config_store import ConfigStore
 
 from imaginaire.lazy_config import LazyCall as L
-from rcm.datasets.webdataset import create_dataloader
+from rcm.datasets.webdataset import create_dataloader, create_qwen_image_dataloader
 
 
 DUMMY_DATALOADER = L(torch.utils.data.DataLoader)(dataset=lambda: torch.utils.data.TensorDataset(torch.empty(0, 1), torch.empty(0)))
@@ -30,9 +30,18 @@ WEBDATASET_LOADER = L(create_dataloader)(
     prefetch_factor=2,
 )
 
+QWEN_IMAGE_DATALOADER = L(create_qwen_image_dataloader)(
+    tar_path_pattern="/path/to/dataset/shard_*.tar",
+    batch_size=1,
+    num_workers=8,
+    shuffle_buffer=1000,
+    prefetch_factor=2,
+)
+
 
 def register_dataloader():
     cs = ConfigStore()
     cs.store(group="data_train", package="dataloader_train", name="dummy", node=DUMMY_DATALOADER)
     cs.store(group="data_train", package="dataloader_train", name="webdataset", node=WEBDATASET_LOADER)
+    cs.store(group="data_train", package="dataloader_train", name="qwen_image_webdataset", node=QWEN_IMAGE_DATALOADER)
     cs.store(group="data_val", package="dataloader_val", name="dummy", node=DUMMY_DATALOADER)

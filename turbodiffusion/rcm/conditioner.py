@@ -112,6 +112,7 @@ class BaseCondition(ABC):
 @dataclass(frozen=True)
 class TextCondition(BaseCondition):
     crossattn_emb: Optional[torch.Tensor] = None
+    crossattn_mask: Optional[torch.Tensor] = None
     data_type: DataType = DataType.VIDEO
 
     def edit_data_type(self, data_type: DataType) -> TextCondition:
@@ -245,6 +246,45 @@ class TextAttr(AbstractEmbModel):
         return "Output key: [crossattn_emb]"
 
 
+class TextAttrWithMask(AbstractEmbModel):
+    """Embedder that passes pre-computed text embeddings and their attention mask.
+
+    Expects two keys in the data batch:
+    - embedding tensor  (B, L, D) — typically ``qwen_text_embed``
+    - attention mask    (B, L)    — typically ``qwen_text_mask`` (0/1 int8)
+
+    Outputs ``crossattn_emb`` and ``crossattn_mask`` so that downstream
+    ``TextCondition`` can carry both fields.
+
+    Args:
+        input_key: Two-element list ``[embed_key, mask_key]``.
+        dropout_rate: Probability of zeroing out the embedding (CFG dropout).
+            The mask is never dropped — a zero-embedding already signals
+            unconditional generation to the network.
+    """
+
+    def __init__(self, input_key: List[str], dropout_rate: float = 0.0):
+        super().__init__()
+        self._input_key = input_key
+        self._dropout_rate = dropout_rate
+
+    def forward(self, token: torch.Tensor, mask: torch.Tensor):
+        return {"crossattn_emb": token, "crossattn_mask": mask}
+
+    def random_dropout_input(
+        self,
+        in_tensor: torch.Tensor,
+        dropout_rate: Optional[float] = None,
+        key: Optional[str] = None,
+    ) -> torch.Tensor:
+        if key is not None and "mask" in key:
+            return in_tensor
+        return super().random_dropout_input(in_tensor, dropout_rate, key)
+
+    def details(self) -> str:
+        return "Output keys: [crossattn_emb, crossattn_mask]"
+
+
 class ReMapkey(AbstractEmbModel):
     def __init__(
         self,
@@ -329,7 +369,7 @@ class GeneralConditioner(nn.Module, ABC):
 
     """
 
-    KEY2DIM = {"crossattn_emb": 1}
+    KEY2DIM = {"crossattn_emb": 1, "crossattn_mask": 1}
 
     def __init__(self, **emb_models: Union[List, Any]):
         super().__init__()
@@ -459,6 +499,12 @@ class GeneralConditioner(nn.Module, ABC):
         if "neg_t5_text_embeddings" in data_batch_neg_prompt:
             if isinstance(data_batch_neg_prompt["neg_t5_text_embeddings"], torch.Tensor):
                 data_batch_neg_prompt["t5_text_embeddings"] = data_batch_neg_prompt["neg_t5_text_embeddings"]
+
+        if "neg_embed" in data_batch_neg_prompt:
+            if isinstance(data_batch_neg_prompt["neg_embed"], torch.Tensor):
+                data_batch_neg_prompt["embed"] = data_batch_neg_prompt["neg_embed"]
+                if "neg_mask" in data_batch_neg_prompt and isinstance(data_batch_neg_prompt["neg_mask"], torch.Tensor):
+                    data_batch_neg_prompt["mask"] = data_batch_neg_prompt["neg_mask"]
 
         condition: Any = self(data_batch, override_dropout_rate=cond_dropout_rates)
         un_condition: Any = self(data_batch_neg_prompt, override_dropout_rate=uncond_dropout_rates)

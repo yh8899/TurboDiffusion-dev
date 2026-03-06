@@ -16,10 +16,14 @@
 from hydra.core.config_store import ConfigStore
 from imaginaire.lazy_config import LazyCall as L, LazyDict, PLACEHOLDER
 from rcm.tokenizers.wan2pt1 import Wan2pt1VAEInterface
+from rcm.tokenizers.qwen_image import QwenImageVAEInterface
 
 Wan2pt1VAEConfig: LazyDict = L(Wan2pt1VAEInterface)(vae_pth=PLACEHOLDER)
+
+QwenImageVAEConfig: LazyDict = L(QwenImageVAEInterface)(model_path=PLACEHOLDER)
 
 
 def register_tokenizer():
     cs = ConfigStore.instance()
     cs.store(group="tokenizer", package="model.config.tokenizer", name="wan2pt1_tokenizer", node=Wan2pt1VAEConfig)
+    cs.store(group="tokenizer", package="model.config.tokenizer", name="qwen_image_tokenizer", node=QwenImageVAEConfig)
