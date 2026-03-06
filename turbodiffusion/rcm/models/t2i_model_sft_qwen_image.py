@@ -118,13 +118,9 @@ class T2IModel_SFT_QwenImage(T2VModel_SFT):
     # Timestep sampling — no video noise multiplier
     # ------------------------------------------------------------------
 
-    def draw_training_time(self, x0_size: int, condition: Any) -> torch.Tensor:
-        batch_size = x0_size[0]
-        sigma_B = self.p_t(batch_size).to(device="cuda")
-        sigma_B_1 = rearrange(sigma_B, "b -> b 1")
+    def draw_training_time(self, time_shape: Any, condition: Any = None) -> torch.Tensor:
         # Images: no video noise multiplier (T=1)
-        time_B_1 = sigma_B_1 / (sigma_B_1 + 1)
-        return time_B_1
+        return self._sample_rf_time(self.p_t, time_shape).float()
 
     # ------------------------------------------------------------------
     # Training step — propagates crossattn_mask
@@ -137,7 +133,7 @@ class T2IModel_SFT_QwenImage(T2VModel_SFT):
     ) -> Tuple[dict[str, Tensor], Tensor]:
         _, x0_B_C_T_H_W, condition, _uncondition = self.get_data_and_condition(data_batch)
 
-        time_B_T = self.draw_training_time(x0_B_C_T_H_W.size(), condition)
+        time_B_T = self.draw_training_time((x0_B_C_T_H_W.shape[0], 1))
         epsilon_B_C_T_H_W = torch.randn(x0_B_C_T_H_W.size(), device="cuda")
         x0_B_C_T_H_W, time_B_T, epsilon_B_C_T_H_W, condition = self.sync(
             x0_B_C_T_H_W, time_B_T, epsilon_B_C_T_H_W, condition

@@ -46,7 +46,7 @@ from imaginaire.utils.easy_io import easy_io
 from imaginaire.utils.ema import FastEmaModelUpdater
 from rcm.conditioner import DataType, TextCondition
 from rcm.utils.optim_instantiate_dtensor import get_base_scheduler
-from rcm.utils.lognormal import LogNormal
+from rcm.utils.timestep_utils import LogNormal
 from rcm.utils.checkpointer import non_strict_load_model
 from rcm.utils.context_parallel import broadcast
 from rcm.utils.dtensor_helper import DTensorFastEmaModelUpdater, broadcast_dtensor_model_states
@@ -299,22 +299,31 @@ class T2VModel_SFT(ImaginaireModel):
             self.tokenizer.reset_dtype()
         self.net = self.net.to(memory_format=memory_format, **self.tensor_kwargs)
 
-    def draw_training_time(self, x0_size: int, condition: Any) -> torch.Tensor:
-        batch_size = x0_size[0]
-        sigma_B = self.p_t(batch_size).to(device="cuda")
-        sigma_B_1 = rearrange(sigma_B, "b -> b 1")
-        is_video_batch = condition.data_type == DataType.VIDEO
-        multiplier = self.video_noise_multiplier if is_video_batch else 1
-        sigma_B_1 = sigma_B_1 * multiplier
-        time_B_1 = sigma_B_1 / (sigma_B_1 + 1)
-        return time_B_1
+    def _sample_rf_time(self, sampler, time_shape: Any) -> torch.Tensor:
+        assert isinstance(time_shape, (int, tuple, list, torch.Size)), f"Unsupported time shape type: {type(time_shape)}"
+        sampled = sampler(shape=time_shape, device="cuda", dtype=torch.float64)
+        domain = getattr(sampler, "output_domain", "rf")
+        assert domain == "rf", f"Expected RF-domain timestep sampler, got {domain}"
+        return sampled.clamp(min=0.0, max=1.0)
+
+    def draw_training_time(self, time_shape: Any, condition: Any = None) -> torch.Tensor:
+        time_B_1 = self._sample_rf_time(self.p_t, time_shape)
+        if condition is not None:
+            is_video_batch = condition.data_type == DataType.VIDEO
+            multiplier = self.video_noise_multiplier if is_video_batch else 1
+            if multiplier != 1:
+                # convert to sigma, scale, convert back
+                sigma = time_B_1 / (1.0 - time_B_1)
+                sigma = sigma * multiplier
+                time_B_1 = sigma / (sigma + 1.0)
+        return time_B_1.float()
 
     def training_step(
         self, data_batch: dict[str, torch.Tensor], iteration: int
     ) -> tuple[dict[str, torch.Tensor], torch.Tensor]:
         _, x0_B_C_T_H_W, condition, _uncondition = self.get_data_and_condition(data_batch)
 
-        time_B_T = self.draw_training_time(x0_B_C_T_H_W.size(), condition)
+        time_B_T = self.draw_training_time((x0_B_C_T_H_W.shape[0], 1), condition)
         epsilon_B_C_T_H_W = torch.randn(x0_B_C_T_H_W.size(), device="cuda")
         x0_B_C_T_H_W, time_B_T, epsilon_B_C_T_H_W, condition = self.sync(
             x0_B_C_T_H_W, time_B_T, epsilon_B_C_T_H_W, condition

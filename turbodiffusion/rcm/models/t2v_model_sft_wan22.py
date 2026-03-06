@@ -62,7 +62,7 @@ from rcm.utils.checkpointer import non_strict_load_model
 from rcm.utils.context_parallel import broadcast
 from rcm.utils.dtensor_helper import DTensorFastEmaModelUpdater, broadcast_dtensor_model_states
 from rcm.utils.fsdp_helper import hsdp_device_mesh
-from rcm.utils.lognormal import LogNormal
+from rcm.utils.timestep_utils import LogNormal
 from rcm.utils.misc import count_params
 from rcm.utils.optim_instantiate_dtensor import get_base_scheduler, get_regular_param_group
 from rcm.utils.torch_future import clip_grad_norm_
@@ -387,8 +387,8 @@ class T2VModel_SFT_Wan22(ImaginaireModel):
         t <-> sigma via:  sigma = t / (1 - t),  t = sigma / (sigma + 1)
         """
         boundary = self.config.boundary_ratio
-        p_mean = self.p_t.gaussian_dist.mean
-        p_std = self.p_t.gaussian_dist.stdev
+        p_mean = self.p_t.p_mean
+        p_std = self.p_t.p_std
         eps = 1e-7
 
         if train_high:
