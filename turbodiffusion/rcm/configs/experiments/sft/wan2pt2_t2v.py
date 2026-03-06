@@ -106,10 +106,97 @@ WAN2PT2_14B_RES720P_T2V_SFT: LazyDict = LazyDict(
     flags={"allow_objects": True},
 )
 
+WAN2PT2_DEBUG_T2V_SFT: LazyDict = LazyDict(
+    dict(
+        defaults=[
+            {"override /trainer": "standard"},
+            {"override /data_train": "webdataset"},
+            {"override /model": "fsdp_t2v_sft_wan22"},
+            {"override /net": "wan2pt2_debug_t2v"},
+            {"override /conditioner": "text_nodrop"},
+            {"override /ckpt_type": "dcp"},
+            {"override /optimizer": "fusedadamw"},
+            {
+                "override /callbacks": [
+                    "basic",
+                    "dataloading_speed",
+                ]
+            },
+            {"override /checkpoint": "local"},
+            {"override /tokenizer": "wan2pt1_tokenizer"},
+            "_self_",
+        ],
+        job=dict(
+            group="SFT_Wan22_Debug",
+            name="wan2pt2_debug_t2v_SFT",
+        ),
+        optimizer=dict(
+            lr=1e-5,
+            weight_decay=0.01,
+            betas=(0.9, 0.999),
+        ),
+        model=dict(
+            config=dict(
+                boundary_ratio=0.9,
+                lora_enabled=True,
+                lora_r=8,
+                lora_alpha=8,
+                lora_dropout=0.0,
+                lora_target_modules=["q", "k", "v", "o"],
+                fsdp_shard_size=1,
+                resolution="480p",
+                timestep_shift=5,
+                state_t=21,
+                grad_clip=False,
+                guidance_scale=5.0,
+                tokenizer=dict(vae_pth="assets/checkpoints/Wan2.1_VAE.pth"),
+                text_encoder_path="assets/checkpoints/models_t5_umt5-xxl-enc-bf16.pth",
+                neg_embed_path="assets/checkpoints/umT5_wan_negative_emb.pt",
+                pretrained_ckpt_high="",
+                pretrained_ckpt_low="",
+                p_t=dict(
+                    p_mean=0.0,
+                    p_std=1.6,
+                ),
+                precision="bfloat16",
+                net=dict(
+                    sac_config=dict(
+                        mode="block_wise",
+                    ),
+                ),
+            )
+        ),
+        checkpoint=dict(
+            save_iter=50,
+            load_path="",
+            load_training_state=False,
+            strict_resume=False,
+        ),
+        trainer=dict(
+            max_iter=100,
+            logging_iter=5,
+        ),
+        model_parallel=dict(
+            context_parallel_size=1,
+        ),
+        dataloader_train=dict(
+            tar_path_pattern="assets/datasets/wan2pt2_t2v/shard*.tar",
+            batch_size=1,
+        ),
+    ),
+    flags={"allow_objects": True},
+)
+
 cs = ConfigStore.instance()
 cs.store(
     group="experiment",
     package="_global_",
     name="wan2pt2_14B_res720p_t2v_SFT",
     node=WAN2PT2_14B_RES720P_T2V_SFT,
+)
+cs.store(
+    group="experiment",
+    package="_global_",
+    name="wan2pt2_debug_t2v_SFT",
+    node=WAN2PT2_DEBUG_T2V_SFT,
 )

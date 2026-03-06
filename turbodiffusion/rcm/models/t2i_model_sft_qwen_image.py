@@ -254,7 +254,6 @@ class T2IModel_SFT_QwenImage(T2VModel_SFT):
         x = init_noise.to(torch.float64)
 
         # Use the official QwenImagePipeline scheduler (cached in __init__).
-        # This ensures correct use_dynamic_shifting, max_shift, time_shift_type etc.
         # sigmas = linspace(1.0, 1/num_steps, num_steps) matches the official pipeline.
         scheduler = self._qwen_scheduler
         # image_seq_len: number of packed image tokens = (H_lat/patch_size) * (W_lat/patch_size)
@@ -263,15 +262,16 @@ class T2IModel_SFT_QwenImage(T2VModel_SFT):
         H_lat = x.shape[-2]
         W_lat = x.shape[-1]
         image_seq_len = (H_lat // patch_size) * (W_lat // patch_size)
-        # mu: interpolation factor for dynamic shift (same formula as pipeline_qwenimage.py)
+        # mu: use the same defaults as pipeline_qwenimage.py's calculate_shift function
         base_seq_len = scheduler.config.get("base_image_seq_len", 256)
-        max_seq_len = scheduler.config.get("max_image_seq_len", 8192)
+        max_seq_len = scheduler.config.get("max_image_seq_len", 4096)
         base_shift = scheduler.config.get("base_shift", 0.5)
-        max_shift = scheduler.config.get("max_shift", 0.9)
+        max_shift = scheduler.config.get("max_shift", 1.15)
         m = (max_shift - base_shift) / (max_seq_len - base_seq_len)
         mu = image_seq_len * m + (base_shift - m * base_seq_len)
         sigmas = np.linspace(1.0, 1.0 / num_steps, num_steps)
         scheduler.set_timesteps(sigmas=sigmas, device=self.tensor_kwargs["device"], mu=mu)
+        scheduler.set_begin_index(0)
 
         ones = torch.ones(x.size(0), 1, device=x.device, dtype=x.dtype)
 

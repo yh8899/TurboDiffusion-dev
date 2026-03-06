@@ -183,13 +183,13 @@ QWEN_IMAGE_T2I_SFT_DEBUG: LazyDict = LazyDict(
             )
         ),
         checkpoint=dict(
-            save_iter=50,
+            save_iter=100,
             load_path="",
             load_training_state=False,
             strict_resume=False,
         ),
         trainer=dict(
-            max_iter=100,
+            max_iter=10_000,
             logging_iter=5,
             callbacks=dict(
                 every_n_sample_reg=dict(
